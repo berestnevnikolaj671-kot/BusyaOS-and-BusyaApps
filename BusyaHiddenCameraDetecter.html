@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Busya Hidden Camera Check</title>
+  <style>
+    :root{
+      --bg:#eef3fb;
+      --bg2:#dde8f7;
+      --panel:#ffffff;
+      --panel2:#f6f9ff;
+      --text:#13233d;
+      --muted:#5f7595;
+      --accent:#3c8df0;
+      --accent2:#6d58ff;
+      --ok:#1da56b;
+      --warn:#d48806;
+      --danger:#d64545;
+      --border:rgba(15,35,65,.12);
+      --shadow:0 10px 28px rgba(17,36,64,.12);
+    }
+    body.dark{
+      --bg:#0b1220;
+      --bg2:#10192d;
+      --panel:#121c31;
+      --panel2:#182743;
+      --text:#eef4ff;
+      --muted:#9cb2d6;
+      --accent:#4cc2ff;
+      --accent2:#7c5cff;
+      --ok:#54d18d;
+      --warn:#ffbf47;
+      --danger:#ff6464;
+      --border:rgba(255,255,255,.08);
+      --shadow:0 10px 30px rgba(0,0,0,.35);
+    }
+
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%}
+    body{
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      color:var(--text);
+      background:linear-gradient(180deg,var(--bg) 0%,var(--bg2) 100%);
+      padding:14px;
+    }
+    .app{max-width:980px;margin:0 auto;display:grid;gap:12px}
+    .topbar,.panel,.notice,.controls,.checklist-card,.modal-card{
+      background:color-mix(in srgb, var(--panel) 92%, transparent);
+      border:1px solid var(--border);
+      border-radius:20px;
+      box-shadow:var(--shadow);
+      backdrop-filter:blur(8px);
+    }
+    .topbar{
+      padding:14px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .title{display:flex;align-items:center;gap:10px}
+    .title h1{margin:0;font-size:1.1rem}
+    .subtitle,.small{color:var(--muted)}
+    .badge{
+      padding:7px 10px;border-radius:999px;
+      background:color-mix(in srgb, var(--accent) 12%, transparent);
+      border:1px solid color-mix(in srgb, var(--accent) 26%, transparent);
+      font-size:.84rem;white-space:nowrap
+    }
+    .header-actions{display:flex;gap:10px;align-items:center}
+    .icon-btn,.tab-btn,.btn,select{
+      appearance:none;border:1px solid var(--border);
+      background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.015));
+      color:var(--text);border-radius:16px;padding:12px 14px;
+      font-size:.95rem;cursor:pointer;transition:.16s ease;
+    }
+    select{cursor:pointer}
+    .icon-btn{padding:12px 13px;font-size:1.1rem}
+    .icon-btn:hover,.tab-btn:hover,.btn:hover{transform:translateY(-1px);border-color:color-mix(in srgb, var(--accent) 38%, transparent)}
+    .tab-btn.active{
+      background:linear-gradient(135deg,color-mix(in srgb, var(--accent) 20%, transparent),color-mix(in srgb, var(--accent2) 18%, transparent));
+      border-color:color-mix(in srgb, var(--accent) 45%, transparent);
+    }
+    .notice{padding:14px;display:grid;gap:8px}
+    .notice strong{color:var(--warn)}
+    .tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+    .panel{padding:12px;overflow:hidden}
+    .view{display:none;gap:12px}
+    .view.active{display:grid}
+    .grid{display:grid;grid-template-columns:1.2fr .8fr;gap:12px}
+    .camera-wrap{
+      position:relative;background:#000;border-radius:18px;overflow:hidden;
+      min-height:320px;aspect-ratio:16/10;border:1px solid var(--border)
+    }
+    video,.fallback-preview{
+      width:100%;height:100%;object-fit:cover;display:block;background:#000;
+      filter:var(--video-filter,none);transform:scale(var(--video-zoom,1));
+      transition:filter .2s ease,transform .2s ease;
+    }
+    .fallback-preview{display:none}
+    .camera-placeholder{
+      position:absolute;inset:0;display:grid;place-items:center;padding:18px;
+      text-align:center;color:#d9e7ff;background:linear-gradient(180deg,#101726,#0a0f19);
+    }
+    .camera-placeholder.hidden{display:none}
+    .camera-box{display:grid;gap:10px;max-width:430px}
+    .camera-box h3{margin:0;font-size:1.05rem}
+    .camera-box p{margin:0;color:#b9c8e2;line-height:1.45}
+    .overlay-center{
+      position:absolute;inset:0;pointer-events:none;display:grid;place-items:center;
+    }
+    .reticle{
+      width:120px;height:120px;border:2px solid rgba(255,255,255,.85);border-radius:50%;
+      box-shadow:0 0 0 200vmax rgba(0,0,0,.06),0 0 16px rgba(255,255,255,.18);position:relative;
+    }
+    .reticle:before,.reticle:after{content:"";position:absolute;background:rgba(255,255,255,.8)}
+    .reticle:before{width:2px;height:150px;left:50%;top:50%;transform:translate(-50%,-50%)}
+    .reticle:after{width:150px;height:2px;left:50%;top:50%;transform:translate(-50%,-50%)}
+    .dark-mask{
+      position:absolute;inset:0;background:radial-gradient(circle at center,rgba(255,255,255,.05),rgba(0,0,0,.65));
+      pointer-events:none;mix-blend-mode:screen;
+    }
+    .lens-tip,.info-box,.diag-box{
+      background:color-mix(in srgb, var(--panel2) 88%, transparent);
+      border:1px solid var(--border);border-radius:16px;padding:12px;line-height:1.45;color:var(--muted)
+    }
+    .diag-box{font-size:.92rem}
+    .controls{padding:12px;display:grid;gap:10px}
+    .buttons{display:flex;flex-wrap:wrap;gap:10px}
+    .btn.primary{
+      background:linear-gradient(135deg,color-mix(in srgb, var(--accent) 24%, transparent),color-mix(in srgb, var(--accent2) 24%, transparent));
+      border-color:color-mix(in srgb, var(--accent) 40%, transparent)
+    }
+    .btn.warn{background:color-mix(in srgb, var(--warn) 10%, transparent);border-color:color-mix(in srgb, var(--warn) 30%, transparent)}
+    .btn.danger{background:color-mix(in srgb, var(--danger) 12%, transparent);border-color:color-mix(in srgb, var(--danger) 28%, transparent)}
+    .btn.ok{background:color-mix(in srgb, var(--ok) 12%, transparent);border-color:color-mix(in srgb, var(--ok) 28%, transparent)}
+    .range-row,.toggle-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;color:var(--muted);font-size:.94rem}
+    .toggle-row{grid-template-columns:1fr}
+    input[type="range"]{width:100%;accent-color:var(--accent)}
+    .status{font-size:.92rem;color:var(--muted);min-height:1.3em}
+    .checklist{display:grid;gap:10px}
+    .checklist-item{
+      display:grid;grid-template-columns:auto 1fr;align-items:start;gap:10px;
+      background:color-mix(in srgb, var(--panel2) 70%, transparent);
+      border:1px solid var(--border);border-radius:16px;padding:12px;
+    }
+    .checklist-item input{width:20px;height:20px;margin-top:2px;accent-color:var(--accent)}
+    .checklist-item b{display:block;margin-bottom:4px;color:var(--text)}
+    .progress{height:10px;border-radius:999px;background:rgba(120,140,160,.12);overflow:hidden;margin-top:8px}
+    .progress>div{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .2s ease}
+    .footer-note{text-align:center;font-size:.88rem;color:var(--muted);padding-bottom:6px}
+    .modal{
+      position:fixed;inset:0;background:rgba(0,0,0,.34);display:none;place-items:center;padding:18px;z-index:20;
+    }
+    .modal.open{display:grid}
+    .modal-card{width:min(500px,100%);padding:16px;display:grid;gap:14px}
+    .modal-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .modal-head h2{margin:0;font-size:1.05rem}
+    .setting-row{display:grid;gap:7px}
+    .setting-row label{font-size:.92rem;color:var(--muted)}
+    .hint-list{margin:0;padding-left:18px;color:var(--muted);line-height:1.5}
+    .spacer{height:2px;background:var(--border);border-radius:999px}
+    @media (max-width:760px){
+      .tabs{grid-template-columns:repeat(2,1fr)}
+      .grid{grid-template-columns:1fr}
+      .camera-wrap{min-height:260px}
+    }
+  </style>
+</head>
+<body class="dark">
+  <div class="app">
+    <div class="topbar">
+      <div class="title">
+        <div style="font-size:1.55rem">👁️</div>
+        <div>
+          <h1 id="appTitle">Busya Hidden Camera Check</h1>
+          <div class="subtitle" id="appSubtitle">Поиск линзы • ИК-поиск • Осмотр • Чек-лист комнаты</div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="badge" id="offlineBadge">Оффлайн helper для BusyaOS</div>
+        <button class="icon-btn" id="settingsBtn" aria-label="Settings">⚙️</button>
+      </div>
+    </div>
+
+    <div class="notice">
+      <div><strong id="importantLabel">Важно:</strong> <span id="notice1">это не магический 100% детектор всех скрытых камер.</span></div>
+      <div id="notice2">Приложение помогает визуально искать <strong>блики линзы</strong>, возможную <strong>ИК-подсветку</strong> и проводить <strong>ручной осмотр</strong>, но <strong>полный детект не гарантирован</strong>.</div>
+      <div class="small" id="notice3">Некоторые камеры не имеют заметной ИК-подсветки, некоторые линзы почти не бликуют, а телефон не умеет быть полноценным RF-сканером.</div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="lens" id="tabLens">🔍 Поиск линзы</button>
+      <button class="tab-btn" data-tab="ir" id="tabIr">🌙 ИК-поиск</button>
+      <button class="tab-btn" data-tab="inspect" id="tabInspect">🔦 Осмотр</button>
+      <button class="tab-btn" data-tab="checklist" id="tabChecklist">✅ Чек-лист</button>
+    </div>
+
+    <div class="panel">
+      <section class="view active" id="view-lens">
+        <div class="grid">
+          <div class="camera-wrap">
+            <video id="video" autoplay playsinline muted></video>
+            <img class="fallback-preview" id="fallbackPreviewLens" alt="preview"/>
+            <div class="camera-placeholder" id="placeholderLens">
+              <div class="camera-box">
+                <h3 id="camNeedTitle">Нужно разрешение на камеру</h3>
+                <p id="camNeedText">Нажми кнопку ниже. Если браузер не даст доступ для local/content файла, открой приложение в BusyaOS через нормальную страницу или встроенное приложение, которое умеет запрашивать камеру.</p>
+                <div class="buttons" style="justify-content:center">
+                  <button class="btn primary" id="startCameraBtn2">🎥 <span id="grantCameraBtn">Разрешить камеру</span></button>
+                  <label class="btn">
+                    📷 <span id="loadPhotoBtnText">Загрузить фото</span>
+                    <input type="file" id="fallbackImageLens" accept="image/*" capture="environment" hidden>
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div class="overlay-center">
+              <div class="reticle"></div>
+            </div>
+          </div>
+          <div class="controls">
+            <div class="buttons">
+              <button class="btn primary" id="startCameraBtn">Включить камеру</button>
+              <button class="btn" id="switchCameraBtn">Сменить камеру</button>
+              <button class="btn warn" id="torchBtn">Фонарик</button>
+              <button class="btn danger" id="stopCameraBtn">Остановить</button>
+            </div>
+            <div class="range-row">
+              <label for="zoomRange" id="zoomLabel">Увеличение</label>
+              <span id="zoomValue">1.0x</span>
+            </div>
+            <input id="zoomRange" type="range" min="1" max="100" step="0.5" value="1" />
+            <div class="range-row">
+              <label for="zoomNumber">Точное значение</label>
+              <input id="zoomNumber" type="number" min="1" max="100" step="0.5" value="1" style="width:110px;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.015));color:var(--text);" />
+            </div>
+            <div class="small" id="zoomWarning"></div>
+            <div class="lens-tip" id="lensTip">Медленно води телефоном по комнате и смотри на <strong>маленькие круглые блики</strong> в отверстиях, датчиках дыма, часах, зарядках, роутерах, декоре, игрушках и вентиляции.</div>
+            <div class="diag-box" id="diagBox"></div>
+            <div class="status" id="statusLens">Камера ещё не запущена.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="view-ir">
+        <div class="grid">
+          <div class="camera-wrap">
+            <video id="videoIr" autoplay playsinline muted></video>
+            <img class="fallback-preview" id="fallbackPreviewIr" alt="preview"/>
+            <div class="camera-placeholder" id="placeholderIr">
+              <div class="camera-box">
+                <h3 id="irNeedTitle">Для ИК-поиска нужна камера</h3>
+                <p id="irNeedText">Если браузер блокирует доступ к камере для local/content файла, можно хотя бы загрузить фото или открыть приложение в среде, где камера доступна.</p>
+                <div class="buttons" style="justify-content:center">
+                  <button class="btn primary" id="startIrBtn2">🎥 <span id="grantCameraBtnIr">Разрешить камеру</span></button>
+                  <label class="btn">
+                    📷 <span id="loadPhotoBtnTextIr">Загрузить фото</span>
+                    <input type="file" id="fallbackImageIr" accept="image/*" capture="environment" hidden>
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div class="dark-mask"></div>
+            <div class="overlay-center">
+              <div class="reticle" style="width:90px;height:90px"></div>
+            </div>
+          </div>
+          <div class="controls">
+            <div class="buttons">
+              <button class="btn primary" id="startIrBtn">Включить ИК-режим</button>
+              <button class="btn" id="switchIrCameraBtn">Сменить камеру</button>
+              <button class="btn danger" id="stopIrBtn">Остановить</button>
+            </div>
+            <div class="toggle-row">
+              <label><input id="highContrastToggle" type="checkbox" checked /> <span id="highContrastText">Усилить контраст</span></label>
+            </div>
+            <div class="toggle-row">
+              <label><input id="invertToggle" type="checkbox" /> <span id="invertText">Инвертировать изображение</span></label>
+            </div>
+            <div class="info-box" id="irTip">Осматривай тёмные зоны, отверстия, верх датчиков, камеры дверных глазков, бытовую технику и предметы с маленькими круглыми отверстиями. Иногда ИК-подсветка видна как <strong>беловатые или фиолетовые точки</strong>.</div>
+            <div class="status" id="statusIr">ИК-режим ещё не запущен.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="view-inspect">
+        <div class="grid">
+          <div class="camera-wrap">
+            <video id="videoInspect" autoplay playsinline muted></video>
+            <img class="fallback-preview" id="fallbackPreviewInspect" alt="preview"/>
+            <div class="camera-placeholder" id="placeholderInspect">
+              <div class="camera-box">
+                <h3 id="inspectNeedTitle">Для осмотра нужна камера</h3>
+                <p id="inspectNeedText">Если live-камера не работает, можно загрузить снимок и увеличить его как лупой.</p>
+                <div class="buttons" style="justify-content:center">
+                  <button class="btn primary" id="startInspectBtn2">🎥 <span id="grantCameraBtnInspect">Разрешить камеру</span></button>
+                  <label class="btn">
+                    📷 <span id="loadPhotoBtnTextInspect">Загрузить фото</span>
+                    <input type="file" id="fallbackImageInspect" accept="image/*" capture="environment" hidden>
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div class="overlay-center">
+              <div class="reticle" style="width:72px;height:72px"></div>
+            </div>
+          </div>
+          <div class="controls">
+            <div class="buttons">
+              <button class="btn primary" id="startInspectBtn">Включить осмотр</button>
+              <button class="btn" id="switchInspectCameraBtn">Сменить камеру</button>
+              <button class="btn warn" id="torchInspectBtn">Фонарик</button>
+              <button class="btn danger" id="stopInspectBtn">Остановить</button>
+            </div>
+            <div class="range-row">
+              <label for="inspectZoomRange" id="magnifierLabel">Лупа</label>
+              <span id="inspectZoomValue">1.0x</span>
+            </div>
+            <input id="inspectZoomRange" type="range" min="1" max="100" step="0.5" value="1" />
+            <div class="range-row">
+              <label for="inspectZoomNumber">Точное значение</label>
+              <input id="inspectZoomNumber" type="number" min="1" max="100" step="0.5" value="1" style="width:110px;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.015));color:var(--text);" />
+            </div>
+            <div class="small" id="inspectZoomWarning"></div>
+            <div class="info-box" id="inspectTip">Это режим ручного осмотра. Подходи ближе и проверяй мелкие отверстия, зеркала, рамки, будильники, зарядки, лампы, блоки питания и вентиляционные решётки.</div>
+            <div class="status" id="statusInspect">Режим осмотра ещё не запущен.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="view-checklist">
+        <div class="grid">
+          <div class="checklist-card" style="padding:12px">
+            <div style="font-size:1rem;font-weight:700;margin-bottom:10px" id="checklistTitle">Что проверить в комнате</div>
+            <div class="checklist" id="checklist"></div>
+          </div>
+          <div class="controls">
+            <div class="info-box">
+              <span id="checklistInfo">Чек-лист не ищет камеры автоматически, зато помогает не забыть типичные места, где их прячут.</span>
+              <div class="progress"><div id="progressFill"></div></div>
+              <div class="small" id="progressText" style="margin-top:8px">Проверено: 0%</div>
+            </div>
+            <div class="buttons">
+              <button class="btn ok" id="markAllBtn">Отметить всё</button>
+              <button class="btn" id="resetChecklistBtn">Сбросить</button>
+            </div>
+            <div class="info-box">
+              <strong id="hintStrong">Подсказка:</strong>
+              <ul class="hint-list">
+                <li id="hint1">датчики дыма и сигнализации</li>
+                <li id="hint2">электронные часы и будильники</li>
+                <li id="hint3">зарядки и блоки питания</li>
+                <li id="hint4">зеркала, декор, игрушки, рамки</li>
+                <li id="hint5">роутеры, удлинители и лампы</li>
+              </ul>
+            </div>
+            <div class="status" id="checklistFooter">Полный детект не гарантирован: приложение — это помощник для осмотра, а не профессиональный спецприбор.</div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="footer-note" id="footerNote">BusyaOS • Hidden Camera Check • без ложной магии, только честные инструменты 👁️</div>
+  </div>
+
+  <div class="modal" id="settingsModal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2 id="settingsTitle">Настройки</h2>
+        <button class="icon-btn" id="closeSettingsBtn">✖️</button>
+      </div>
+      <div class="setting-row">
+        <label for="languageSelect" id="languageLabel">Язык</label>
+        <select id="languageSelect">
+          <option value="ru">Русский 🇷🇺</option>
+          <option value="en">English 🇬🇧</option>
+          <option value="be">Беларуская 🇧🇾</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <label for="themeSelect" id="themeLabel">Тема</label>
+        <select id="themeSelect">
+          <option value="dark">Тёмная 🌛</option>
+          <option value="light">Светлая 🌞</option>
+        </select>
+      </div>
+      <div class="spacer"></div>
+      <div class="info-box" id="settingsHint">
+        Если камера не запрашивается, проблема обычно не в самом приложении, а в том, что браузер открыл local/content файл без поддержки live-камеры.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const I18N = {
+      ru: {
+        appTitle: 'Busya Hidden Camera Check',
+        appSubtitle: 'Поиск линзы • ИК-поиск • Осмотр • Чек-лист комнаты',
+        offlineBadge: 'Оффлайн helper для BusyaOS',
+        importantLabel: 'Важно:',
+        notice1: 'это не магический 100% детектор всех скрытых камер.',
+        notice2: 'Приложение помогает визуально искать <strong>блики линзы</strong>, возможную <strong>ИК-подсветку</strong> и проводить <strong>ручной осмотр</strong>, но <strong>полный детект не гарантирован</strong>.',
+        notice3: 'Некоторые камеры не имеют заметной ИК-подсветки, некоторые линзы почти не бликуют, а телефон не умеет быть полноценным RF-сканером.',
+        tabLens: '🔍 Поиск линзы',
+        tabIr: '🌙 ИК-поиск',
+        tabInspect: '🔦 Осмотр',
+        tabChecklist: '✅ Чек-лист',
+        camNeedTitle: 'Нужно разрешение на камеру',
+        camNeedText: 'Нажми кнопку ниже. Если браузер не даст доступ для local/content файла, открой приложение в BusyaOS через нормальную страницу или встроенное приложение, которое умеет запрашивать камеру.',
+        grantCameraBtn: 'Разрешить камеру',
+        loadPhotoBtnText: 'Загрузить фото',
+        startCameraBtn: 'Включить камеру',
+        switchCameraBtn: 'Сменить камеру',
+        torchBtn: 'Фонарик',
+        stopCameraBtn: 'Остановить',
+        zoomLabel: 'Увеличение',
+        exactValueLabel: 'Точное значение',
+        zoomWarnSoft: '⚠️ Качество уже заметно падает.',
+        zoomWarnHard: '⚠️ Очень сильный цифровой зум: изображение будет мыльным.',
+        zoomWarnExtreme: '⚠️ 100× — это почти максимум цифровой лупы, чудес по качеству не будет.',
+        lensTip: 'Медленно води телефоном по комнате и смотри на <strong>маленькие круглые блики</strong> в отверстиях, датчиках дыма, часах, зарядках, роутерах, декоре, игрушках и вентиляции.',
+        irNeedTitle: 'Для ИК-поиска нужна камера',
+        irNeedText: 'Если браузер блокирует доступ к камере для local/content файла, можно хотя бы загрузить фото или открыть приложение в среде, где камера доступна.',
+        grantCameraBtnIr: 'Разрешить камеру',
+        loadPhotoBtnTextIr: 'Загрузить фото',
+        startIrBtn: 'Включить ИК-режим',
+        highContrastText: 'Усилить контраст',
+        invertText: 'Инвертировать изображение',
+        irTip: 'Осматривай тёмные зоны, отверстия, верх датчиков, камеры дверных глазков, бытовую технику и предметы с маленькими круглыми отверстиями. Иногда ИК-подсветка видна как <strong>беловатые или фиолетовые точки</strong>.',
+        inspectNeedTitle: 'Для осмотра нужна камера',
+        inspectNeedText: 'Если live-камера не работает, можно загрузить снимок и увеличить его как лупой.',
+        grantCameraBtnInspect: 'Разрешить камеру',
+        loadPhotoBtnTextInspect: 'Загрузить фото',
+        startInspectBtn: 'Включить осмотр',
+        torchInspectBtn: 'Фонарик',
+        magnifierLabel: 'Лупа',
+        inspectTip: 'Это режим ручного осмотра. Подходи ближе и проверяй мелкие отверстия, зеркала, рамки, будильники, зарядки, лампы, блоки питания и вентиляционные решётки.',
+        checklistTitle: 'Что проверить в комнате',
+        checklistInfo: 'Чек-лист не ищет камеры автоматически, зато помогает не забыть типичные места, где их прячут.',
+        markAllBtn: 'Отметить всё',
+        resetChecklistBtn: 'Сбросить',
+        hintStrong: 'Подсказка:',
+        hint1: 'датчики дыма и сигнализации',
+        hint2: 'электронные часы и будильники',
+        hint3: 'зарядки и блоки питания',
+        hint4: 'зеркала, декор, игрушки, рамки',
+        hint5: 'роутеры, удлинители и лампы',
+        checklistFooter: 'Полный детект не гарантирован: приложение — это помощник для осмотра, а не профессиональный спецприбор.',
+        footerNote: 'BusyaOS • Hidden Camera Check • без ложной магии, только честные инструменты 👁️',
+        settingsTitle: 'Настройки',
+        languageLabel: 'Язык',
+        themeLabel: 'Тема',
+        settingsHint: 'Если камера не запрашивается, проблема обычно не в самом приложении, а в том, что браузер открыл local/content файл без поддержки live-камеры.',
+        themeDark: 'Тёмная 🌛',
+        themeLight: 'Светлая 🌞',
+        progressText: (p,c,t)=>`Проверено: ${p}% (${c}/${t})`,
+        statusReady: 'Камера ещё не запущена.',
+        statusIrReady: 'ИК-режим ещё не запущен.',
+        statusInspectReady: 'Режим осмотра ещё не запущен.',
+        camOn: side => `Камера включена (${side}).`,
+        sideBack: 'задняя',
+        sideFront: 'передняя',
+        camStopped: 'Камера остановлена.',
+        irStopped: 'ИК-режим остановлен.',
+        inspectStopped: 'Режим осмотра остановлен.',
+        needStart: 'Сначала включи камеру.',
+        torchUnsupported: 'Фонарик не поддерживается этим браузером или камерой.',
+        torchOn: 'Фонарик включён.',
+        torchOff: 'Фонарик выключен.',
+        torchFail: 'Не удалось переключить фонарик.',
+        camFail: 'Не удалось включить камеру.',
+        permCheck: 'Диагностика камеры',
+        permSecure: 'Безопасный режим страницы',
+        permYes: 'да',
+        permNo: 'нет',
+        permApi: 'mediaDevices API',
+        permPermission: 'Статус разрешения',
+        permUnknown: 'неизвестно',
+        permTip1: 'Если здесь secure = нет, браузер может блокировать камеру для local/content файла.',
+        permTip2: 'Тогда используй загрузку фото или открывай приложение в среде, где доступ к камере разрешён.',
+        fallbackLoaded: 'Фото загружено. Это режим без live-камеры.',
+        fallbackLabel: 'Загрузить фото',
+        checklistItems: [
+          ['Датчики дыма и сигнализации', 'Проверь отверстия, прозрачные точки и нестандартные линзы.'],
+          ['Электронные часы и будильники', 'Особенно дешёвые или необычно расположенные устройства.'],
+          ['Зарядки и блоки питания', 'Скрытые камеры часто маскируют под USB-адаптеры.'],
+          ['Роутеры и сетевые коробки', 'Проверь передние панели, отверстия, глазки.'],
+          ['Лампы и ночники', 'Осмотри корпус, декоративные элементы и плафоны.'],
+          ['Зеркала и стеклянные поверхности', 'Проверь, нет ли за ними точки объектива или странного блика.'],
+          ['Игрушки и декор', 'Особенно предметы, направленные в сторону кровати или душа.'],
+          ['Вентиляция и решётки', 'Осмотри глубину отверстий и углы обзора.'],
+          ['Картины, рамки, настенные предметы', 'Проверь крошечные отверстия и странные детали.'],
+          ['Розетки, удлинители, фильтры', 'Смотри, нет ли лишних чёрных точек и объективов.']
+        ]
+      },
+      en: {
+        appTitle: 'Busya Hidden Camera Check',
+        appSubtitle: 'Lens search • IR search • Inspect • Room checklist',
+        offlineBadge: 'Offline helper for BusyaOS',
+        importantLabel: 'Important:',
+        notice1: 'this is not a magic 100% detector of all hidden cameras.',
+        notice2: 'The app helps visually look for <strong>lens reflections</strong>, possible <strong>IR light</strong>, and do a <strong>manual inspection</strong>, but <strong>full detection is not guaranteed</strong>.',
+        notice3: 'Some cameras have no visible IR light, some lenses barely reflect, and the phone is not a full RF scanner.',
+        tabLens: '🔍 Lens search',
+        tabIr: '🌙 IR search',
+        tabInspect: '🔦 Inspect',
+        tabChecklist: '✅ Checklist',
+        camNeedTitle: 'Camera permission is needed',
+        camNeedText: 'Press the button below. If the browser refuses camera access for a local/content file, open the app in BusyaOS through a normal page or an embedded app that can request camera access.',
+        grantCameraBtn: 'Allow camera',
+        loadPhotoBtnText: 'Load photo',
+        startCameraBtn: 'Start camera',
+        switchCameraBtn: 'Switch camera',
+        torchBtn: 'Torch',
+        stopCameraBtn: 'Stop',
+        zoomLabel: 'Zoom',
+        exactValueLabel: 'Exact value',
+        zoomWarnSoft: '⚠️ Image quality is already dropping.',
+        zoomWarnHard: '⚠️ Very strong digital zoom: the image will be blurry.',
+        zoomWarnExtreme: '⚠️ 100× is near the digital magnifier limit, so do not expect miracles.',
+        lensTip: 'Move the phone slowly around the room and look for <strong>small round reflections</strong> in holes, smoke detectors, clocks, chargers, routers, decor, toys, and vents.',
+        irNeedTitle: 'Camera is needed for IR search',
+        irNeedText: 'If the browser blocks camera access for a local/content file, you can still load a photo or open the app in an environment where the camera is available.',
+        grantCameraBtnIr: 'Allow camera',
+        loadPhotoBtnTextIr: 'Load photo',
+        startIrBtn: 'Start IR mode',
+        highContrastText: 'Boost contrast',
+        invertText: 'Invert image',
+        irTip: 'Inspect dark areas, holes, sensor tops, peephole devices, home electronics, and objects with tiny circular openings. IR light sometimes appears as <strong>white or purple dots</strong>.',
+        inspectNeedTitle: 'Camera is needed for inspection',
+        inspectNeedText: 'If live camera fails, you can load a photo and zoom it like a magnifier.',
+        grantCameraBtnInspect: 'Allow camera',
+        loadPhotoBtnTextInspect: 'Load photo',
+        startInspectBtn: 'Start inspect',
+        torchInspectBtn: 'Torch',
+        magnifierLabel: 'Magnifier',
+        inspectTip: 'This is a manual inspection mode. Get closer and check small holes, mirrors, frames, alarm clocks, chargers, lamps, power adapters, and vents.',
+        checklistTitle: 'What to inspect in the room',
+        checklistInfo: 'The checklist does not detect cameras automatically, but it helps you avoid missing common hiding spots.',
+        markAllBtn: 'Mark all',
+        resetChecklistBtn: 'Reset',
+        hintStrong: 'Tip:',
+        hint1: 'smoke and alarm detectors',
+        hint2: 'electronic clocks and alarm clocks',
+        hint3: 'chargers and power adapters',
+        hint4: 'mirrors, decor, toys, frames',
+        hint5: 'routers, power strips, lamps',
+        checklistFooter: 'Full detection is not guaranteed: this app is an inspection helper, not a professional device.',
+        footerNote: 'BusyaOS • Hidden Camera Check • no fake magic, only honest tools 👁️',
+        settingsTitle: 'Settings',
+        languageLabel: 'Language',
+        themeLabel: 'Theme',
+        settingsHint: 'If the camera permission does not appear, the problem is usually not the app itself, but the browser opening a local/content file without live camera support.',
+        themeDark: 'Dark 🌛',
+        themeLight: 'Light 🌞',
+        progressText: (p,c,t)=>`Checked: ${p}% (${c}/${t})`,
+        statusReady: 'Camera is not started yet.',
+        statusIrReady: 'IR mode is not started yet.',
+        statusInspectReady: 'Inspect mode is not started yet.',
+        camOn: side => `Camera started (${side}).`,
+        sideBack: 'back',
+        sideFront: 'front',
+        camStopped: 'Camera stopped.',
+        irStopped: 'IR mode stopped.',
+        inspectStopped: 'Inspect mode stopped.',
+        needStart: 'Start the camera first.',
+        torchUnsupported: 'Torch is not supported by this browser or camera.',
+        torchOn: 'Torch enabled.',
+        torchOff: 'Torch disabled.',
+        torchFail: 'Could not switch the torch.',
+        camFail: 'Could not start the camera.',
+        permCheck: 'Camera diagnostics',
+        permSecure: 'Secure context',
+        permYes: 'yes',
+        permNo: 'no',
+        permApi: 'mediaDevices API',
+        permPermission: 'Permission state',
+        permUnknown: 'unknown',
+        permTip1: 'If secure = no, the browser may block the camera for a local/content file.',
+        permTip2: 'Then use photo loading or open the app in an environment where camera access is allowed.',
+        fallbackLoaded: 'Photo loaded. This is a no-live-camera mode.',
+        fallbackLabel: 'Load photo',
+        checklistItems: [
+          ['Smoke and alarm detectors', 'Check holes, transparent dots, and unusual lenses.'],
+          ['Electronic clocks and alarm clocks', 'Especially cheap or oddly placed devices.'],
+          ['Chargers and power adapters', 'Hidden cameras are often disguised as USB chargers.'],
+          ['Routers and network boxes', 'Inspect front panels, holes, and tiny black dots.'],
+          ['Lamps and night lights', 'Check the housing, decor pieces, and covers.'],
+          ['Mirrors and glass surfaces', 'Look for lens points or suspicious reflections behind them.'],
+          ['Toys and decor', 'Especially objects aimed toward a bed or shower.'],
+          ['Vents and grilles', 'Inspect depth, angles, and hidden openings.'],
+          ['Pictures, frames, wall objects', 'Check tiny holes and odd details.'],
+          ['Sockets, power strips, filters', 'Look for extra black dots and lens-like parts.']
+        ]
+      },
+      be: {
+        appTitle: 'Busya Hidden Camera Check',
+        appSubtitle: 'Пошук лінзы • ІЧ-пошук • Агляд • Чэк-ліст пакоя',
+        offlineBadge: 'Афлайн helper для BusyaOS',
+        importantLabel: 'Важна:',
+        notice1: 'гэта не магічны 100% дэтэктар усіх схаваных камер.',
+        notice2: 'Праграма дапамагае візуальна шукаць <strong>блікі лінзы</strong>, магчымую <strong>ІЧ-падсветку</strong> і рабіць <strong>ручны агляд</strong>, але <strong>поўны дэтэкт не гарантуецца</strong>.',
+        notice3: 'Некаторыя камеры не маюць прыкметнай ІЧ-падсветкі, некаторыя лінзы амаль не блікуюць, а тэлефон не з’яўляецца паўнавартасным RF-сканерам.',
+        tabLens: '🔍 Пошук лінзы',
+        tabIr: '🌙 ІЧ-пошук',
+        tabInspect: '🔦 Агляд',
+        tabChecklist: '✅ Чэк-ліст',
+        camNeedTitle: 'Патрэбны дазвол на камеру',
+        camNeedText: 'Націсні кнопку ніжэй. Калі браўзер не дасць доступ да камеры для local/content файла, адкрый праграму ў BusyaOS праз звычайную старонку або ўбудаваную праграму, якая ўмее запытваць камеру.',
+        grantCameraBtn: 'Дазволіць камеру',
+        loadPhotoBtnText: 'Загрузіць фота',
+        startCameraBtn: 'Уключыць камеру',
+        switchCameraBtn: 'Змяніць камеру',
+        torchBtn: 'Ліхтарык',
+        stopCameraBtn: 'Спыніць',
+        zoomLabel: 'Павелічэнне',
+        exactValueLabel: 'Дакладнае значэнне',
+        zoomWarnSoft: '⚠️ Якасць ужо прыкметна пагаршаецца.',
+        zoomWarnHard: '⚠️ Вельмі моцны лічбавы зум: малюнак будзе мыльны.',
+        zoomWarnExtreme: '⚠️ 100× — гэта амаль максімум лічбавай лупы, цудаў у якасці не будзе.',
+        lensTip: 'Павольна водзь тэлефонам па пакоі і глядзі на <strong>маленькія круглыя блікі</strong> ў адтулінах, датчыках дыму, гадзінніках, зарадках, роутэрах, дэкорах, цацках і вентыляцыі.',
+        irNeedTitle: 'Для ІЧ-пошуку патрэбна камера',
+        irNeedText: 'Калі браўзер блакуе доступ да камеры для local/content файла, можна хаця б загрузіць фота або адкрыць праграму ў асяроддзі, дзе камера даступная.',
+        grantCameraBtnIr: 'Дазволіць камеру',
+        loadPhotoBtnTextIr: 'Загрузіць фота',
+        startIrBtn: 'Уключыць ІЧ-рэжым',
+        highContrastText: 'Узмацніць кантраст',
+        invertText: 'Інвертаваць малюнак',
+        irTip: 'Аглядай цёмныя зоны, адтуліны, верх датчыкаў, вочка дзвярэй, бытавую тэхніку і прадметы з маленькімі круглымі адтулінамі. Часам ІЧ-падсветка бачная як <strong>белыя або фіялетавыя кропкі</strong>.',
+        inspectNeedTitle: 'Для агляду патрэбна камера',
+        inspectNeedText: 'Калі live-камера не працуе, можна загрузіць здымак і павялічваць яго як лупай.',
+        grantCameraBtnInspect: 'Дазволіць камеру',
+        loadPhotoBtnTextInspect: 'Загрузіць фота',
+        startInspectBtn: 'Уключыць агляд',
+        torchInspectBtn: 'Ліхтарык',
+        magnifierLabel: 'Лупа',
+        inspectTip: 'Гэта рэжым ручнога агляду. Падыходзь бліжэй і правярай дробныя адтуліны, люстэркі, рамкі, будзільнікі, зарадкі, лямпы, блокі харчавання і вентыляцыйныя рашоткі.',
+        checklistTitle: 'Што праверыць у пакоі',
+        checklistInfo: 'Чэк-ліст не шукае камеры аўтаматычна, затое дапамагае не забыць тыповыя месцы, дзе іх хаваюць.',
+        markAllBtn: 'Адзначыць усё',
+        resetChecklistBtn: 'Скінуць',
+        hintStrong: 'Падказка:',
+        hint1: 'датчыкі дыму і сігналізацыі',
+        hint2: 'электронныя гадзіннікі і будзільнікі',
+        hint3: 'зарадкі і блокі харчавання',
+        hint4: 'люстэркі, дэкор, цацкі, рамкі',
+        hint5: 'роутэры, падаўжальнікі і лямпы',
+        checklistFooter: 'Поўны дэтэкт не гарантуецца: гэта памочнік для агляду, а не прафесійны прыбор.',
+        footerNote: 'BusyaOS • Hidden Camera Check • без фальшывай магіі, толькі сумленныя інструменты 👁️',
+        settingsTitle: 'Налады',
+        languageLabel: 'Мова',
+        themeLabel: 'Тэма',
+        settingsHint: 'Калі доступ да камеры не запытваецца, праблема звычайна не ў праграме, а ў тым, што браўзер адкрыў local/content файл без падтрымкі live-камеры.',
+        themeDark: 'Цёмная 🌛',
+        themeLight: 'Светлая 🌞',
+        progressText: (p,c,t)=>`Праверана: ${p}% (${c}/${t})`,
+        statusReady: 'Камера яшчэ не запушчана.',
+        statusIrReady: 'ІЧ-рэжым яшчэ не запушчаны.',
+        statusInspectReady: 'Рэжым агляду яшчэ не запушчаны.',
+        camOn: side => `Камера ўключана (${side}).`,
+        sideBack: 'задняя',
+        sideFront: 'пярэдняя',
+        camStopped: 'Камера спынена.',
+        irStopped: 'ІЧ-рэжым спынены.',
+        inspectStopped: 'Рэжым агляду спынены.',
+        needStart: 'Спачатку ўключы камеру.',
+        torchUnsupported: 'Ліхтарык не падтрымліваецца гэтым браўзерам або камерай.',
+        torchOn: 'Ліхтарык уключаны.',
+        torchOff: 'Ліхтарык выключаны.',
+        torchFail: 'Не ўдалося пераключыць ліхтарык.',
+        camFail: 'Не ўдалося ўключыць камеру.',
+        permCheck: 'Дыягностыка камеры',
+        permSecure: 'Бяспечны рэжым старонкі',
+        permYes: 'так',
+        permNo: 'не',
+        permApi: 'mediaDevices API',
+        permPermission: 'Стан дазволу',
+        permUnknown: 'невядома',
+        permTip1: 'Калі тут secure = не, браўзер можа блакаваць камеру для local/content файла.',
+        permTip2: 'Тады выкарыстоўвай загрузку фота або адкрывай праграму ў асяроддзі, дзе камера дазволеная.',
+        fallbackLoaded: 'Фота загружана. Гэта рэжым без live-камеры.',
+        fallbackLabel: 'Загрузіць фота',
+        checklistItems: [
+          ['Датчыкі дыму і сігналізацыі', 'Правер адтуліны, празрыстыя кропкі і незвычайныя лінзы.'],
+          ['Электронныя гадзіннікі і будзільнікі', 'Асабліва танныя або дзіўна размешчаныя прылады.'],
+          ['Зарадкі і блокі харчавання', 'Схаваныя камеры часта маскіруюць пад USB-зарадкі.'],
+          ['Роутэры і сеткавыя каробкі', 'Правер пярэднія панэлі, адтуліны і маленькія чорныя кропкі.'],
+          ['Лямпы і начнікі', 'Агледзь корпус, дэкаратыўныя элементы і плафоны.'],
+          ['Люстэркі і шкляныя паверхні', 'Шукай кропку аб’ектыва або падазроны блік за імі.'],
+          ['Цацкі і дэкор', 'Асабліва прадметы, накіраваныя ў бок ложка або душа.'],
+          ['Вентыляцыя і рашоткі', 'Правер глыбіню, куты і схаваныя адтуліны.'],
+          ['Карціны, рамкі, насценныя прадметы', 'Правер дробныя адтуліны і дзіўныя дэталі.'],
+          ['Разеткі, падаўжальнікі, фільтры', 'Глядзі, ці няма лішніх чорных кропак і частак, падобных да лінзы.']
+        ]
+      }
+    };
+
+    const state = {
+      lang: localStorage.getItem('busya_cam_lang') || 'ru',
+      theme: localStorage.getItem('busya_cam_theme') || 'dark'
+    };
+
+    const ids = [
+      'appTitle','appSubtitle','offlineBadge','importantLabel','notice1','notice2','notice3',
+      'tabLens','tabIr','tabInspect','tabChecklist',
+      'camNeedTitle','camNeedText','grantCameraBtn','loadPhotoBtnText',
+      'startCameraBtn','switchCameraBtn','torchBtn','stopCameraBtn','zoomLabel','lensTip',
+      'irNeedTitle','irNeedText','grantCameraBtnIr','loadPhotoBtnTextIr','startIrBtn','highContrastText','invertText','irTip',
+      'inspectNeedTitle','inspectNeedText','grantCameraBtnInspect','loadPhotoBtnTextInspect','startInspectBtn','torchInspectBtn','magnifierLabel','inspectTip',
+      'checklistTitle','checklistInfo','markAllBtn','resetChecklistBtn','hintStrong','hint1','hint2','hint3','hint4','hint5','checklistFooter',
+      'footerNote','settingsTitle','languageLabel','themeLabel','settingsHint'
+    ];
+
+    function t(key){
+      return I18N[state.lang][key];
+    }
+
+    function applyTheme(){
+      document.body.classList.toggle('dark', state.theme === 'dark');
+      document.getElementById('themeSelect').value = state.theme;
+      const opts = document.getElementById('themeSelect').options;
+      opts[0].text = t('themeDark');
+      opts[1].text = t('themeLight');
+      localStorage.setItem('busya_cam_theme', state.theme);
+    }
+
+    function applyLanguage(){
+      ids.forEach(id => {
+        const el = document.getElementById(id);
+        if(!el) return;
+        el.innerHTML = t(id);
+      });
+      document.getElementById('languageSelect').value = state.lang;
+      const znl = document.querySelector('label[for="zoomNumber"]');
+      if (znl) znl.textContent = t('exactValueLabel');
+      const iznl = document.querySelector('label[for="inspectZoomNumber"]');
+      if (iznl) iznl.textContent = t('exactValueLabel');
+      applyTheme();
+      setStatus('statusLens', t('statusReady'));
+      setStatus('statusIr', t('statusIrReady'));
+      setStatus('statusInspect', t('statusInspectReady'));
+      renderChecklist();
+      updateDiagnostics();
+      localStorage.setItem('busya_cam_lang', state.lang);
+    }
+
+    document.getElementById('languageSelect').addEventListener('change', e => {
+      state.lang = e.target.value;
+      applyLanguage();
+    });
+
+    document.getElementById('themeSelect').addEventListener('change', e => {
+      state.theme = e.target.value;
+      applyTheme();
+    });
+
+    const settingsModal = document.getElementById('settingsModal');
+    document.getElementById('settingsBtn').addEventListener('click', ()=>settingsModal.classList.add('open'));
+    document.getElementById('closeSettingsBtn').addEventListener('click', ()=>settingsModal.classList.remove('open'));
+    settingsModal.addEventListener('click', e => { if(e.target === settingsModal) settingsModal.classList.remove('open'); });
+
+    const tabs = document.querySelectorAll('.tab-btn');
+    const views = document.querySelectorAll('.view');
+    tabs.forEach(btn => {
+      btn.addEventListener('click', () => {
+        tabs.forEach(b => b.classList.remove('active'));
+        views.forEach(v => v.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`view-${btn.dataset.tab}`).classList.add('active');
+      });
+    });
+
+    const cameraState = {
+      lens: { stream:null, facingMode:'environment', video:document.getElementById('video'), track:null, placeholder:document.getElementById('placeholderLens'), fallback:document.getElementById('fallbackPreviewLens') },
+      ir: { stream:null, facingMode:'environment', video:document.getElementById('videoIr'), track:null, placeholder:document.getElementById('placeholderIr'), fallback:document.getElementById('fallbackPreviewIr') },
+      inspect: { stream:null, facingMode:'environment', video:document.getElementById('videoInspect'), track:null, placeholder:document.getElementById('placeholderInspect'), fallback:document.getElementById('fallbackPreviewInspect') }
+    };
+
+    function setStatus(id, text){
+      document.getElementById(id).textContent = text;
+    }
+
+    async function queryCameraPermission(){
+      try{
+        if(!navigator.permissions || !navigator.permissions.query) return t('permUnknown');
+        const result = await navigator.permissions.query({name:'camera'});
+        return result.state || t('permUnknown');
+      }catch{
+        return t('permUnknown');
+      }
+    }
+
+    async function updateDiagnostics(){
+      const permission = await queryCameraPermission();
+      const secure = window.isSecureContext ? t('permYes') : t('permNo');
+      const hasApi = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) ? t('permYes') : t('permNo');
+      document.getElementById('diagBox').innerHTML = `
+        <strong>${t('permCheck')}</strong><br>
+        ${t('permSecure')}: <b>${secure}</b><br>
+        ${t('permApi')}: <b>${hasApi}</b><br>
+        ${t('permPermission')}: <b>${permission}</b><br><br>
+        ${t('permTip1')}<br>
+        ${t('permTip2')}
+      `;
+    }
+
+    function showPlaceholder(mode, show){
+      cameraState[mode].placeholder.classList.toggle('hidden', !show);
+    }
+
+    function showFallback(mode, dataUrl){
+      const s = cameraState[mode];
+      s.fallback.src = dataUrl;
+      s.fallback.style.display = 'block';
+      s.video.style.display = 'none';
+      showPlaceholder(mode, false);
+    }
+
+    function showVideo(mode){
+      const s = cameraState[mode];
+      s.fallback.style.display = 'none';
+      s.video.style.display = 'block';
+      showPlaceholder(mode, false);
+    }
+
+    async function startCamera(mode, statusId){
+      const s = cameraState[mode];
+      await stopCamera(mode);
+      try{
+        if(!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)){
+          throw new Error('mediaDevices unavailable');
+        }
+        const constraints = {
+          audio:false,
+          video:{
+            facingMode:s.facingMode,
+            width:{ideal:1920},
+            height:{ideal:1080}
+          }
+        };
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        s.stream = stream;
+        s.track = stream.getVideoTracks()[0] || null;
+        s.video.srcObject = stream;
+        showVideo(mode);
+        await s.video.play();
+        setStatus(statusId, t('camOn')(s.facingMode === 'environment' ? t('sideBack') : t('sideFront')));
+        await updateDiagnostics();
+      }catch(err){
+        console.error(err);
+        showPlaceholder(mode, true);
+        setStatus(statusId, `${t('camFail')} ${err && err.message ? err.message : ''}`.trim());
+        await updateDiagnostics();
+      }
+    }
+
+    async function stopCamera(mode){
+      const s = cameraState[mode];
+      if(s.stream){
+        s.stream.getTracks().forEach(track => track.stop());
+        s.stream = null;
+        s.track = null;
+      }
+      s.video.srcObject = null;
+      s.video.style.display = 'block';
+      s.fallback.style.display = 'none';
+      showPlaceholder(mode, true);
+    }
+
+    function switchCamera(mode, statusId){
+      cameraState[mode].facingMode = cameraState[mode].facingMode === 'environment' ? 'user' : 'environment';
+      startCamera(mode, statusId);
+    }
+
+    async function toggleTorch(mode, statusId){
+      const s = cameraState[mode];
+      try{
+        const track = s.track;
+        if(!track){
+          setStatus(statusId, t('needStart'));
+          return;
+        }
+        const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+        if(!capabilities.torch){
+          setStatus(statusId, t('torchUnsupported'));
+          return;
+        }
+        const next = !(track.getSettings && track.getSettings().torch);
+        await track.applyConstraints({advanced:[{torch:next}]});
+        setStatus(statusId, next ? t('torchOn') : t('torchOff'));
+      }catch(err){
+        console.error(err);
+        setStatus(statusId, t('torchFail'));
+      }
+    }
+
+    function bindFallbackInput(inputId, mode, statusId){
+      document.getElementById(inputId).addEventListener('change', e => {
+        const file = e.target.files && e.target.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = ev => {
+          stopCamera(mode);
+          showFallback(mode, ev.target.result);
+          setStatus(statusId, t('fallbackLoaded'));
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    document.getElementById('startCameraBtn').addEventListener('click', ()=>startCamera('lens','statusLens'));
+    document.getElementById('startCameraBtn2').addEventListener('click', ()=>startCamera('lens','statusLens'));
+    document.getElementById('switchCameraBtn').addEventListener('click', ()=>switchCamera('lens','statusLens'));
+    document.getElementById('stopCameraBtn').addEventListener('click', async ()=>{ await stopCamera('lens'); setStatus('statusLens', t('camStopped')); });
+
+    document.getElementById('startIrBtn').addEventListener('click', ()=>startCamera('ir','statusIr'));
+    document.getElementById('startIrBtn2').addEventListener('click', ()=>startCamera('ir','statusIr'));
+    document.getElementById('switchIrCameraBtn').addEventListener('click', ()=>switchCamera('ir','statusIr'));
+    document.getElementById('stopIrBtn').addEventListener('click', async ()=>{ await stopCamera('ir'); setStatus('statusIr', t('irStopped')); });
+
+    document.getElementById('startInspectBtn').addEventListener('click', ()=>startCamera('inspect','statusInspect'));
+    document.getElementById('startInspectBtn2').addEventListener('click', ()=>startCamera('inspect','statusInspect'));
+    document.getElementById('switchInspectCameraBtn').addEventListener('click', ()=>switchCamera('inspect','statusInspect'));
+    document.getElementById('stopInspectBtn').addEventListener('click', async ()=>{ await stopCamera('inspect'); setStatus('statusInspect', t('inspectStopped')); });
+
+    document.getElementById('torchBtn').addEventListener('click', ()=>toggleTorch('lens','statusLens'));
+    document.getElementById('torchInspectBtn').addEventListener('click', ()=>toggleTorch('inspect','statusInspect'));
+
+    const zoomRange = document.getElementById('zoomRange');
+    const zoomValue = document.getElementById('zoomValue');
+    const zoomNumber = document.getElementById('zoomNumber');
+    const zoomWarning = document.getElementById('zoomWarning');
+
+    function getZoomWarning(val){
+      if(val >= 100) return t('zoomWarnExtreme');
+      if(val >= 25) return t('zoomWarnHard');
+      if(val >= 10) return t('zoomWarnSoft');
+      return '';
+    }
+
+    function applyLensZoom(rawVal){
+      let num = Number(rawVal);
+      if(!Number.isFinite(num)) num = 1;
+      num = Math.min(100, Math.max(1, num));
+      const val = num.toFixed(1);
+      zoomRange.value = val;
+      zoomNumber.value = val;
+      cameraState.lens.video.style.setProperty('--video-zoom', val);
+      cameraState.lens.fallback.style.setProperty('--video-zoom', val);
+      zoomValue.textContent = `${val}x`;
+      zoomWarning.textContent = getZoomWarning(num);
+    }
+
+    zoomRange.addEventListener('input', ()=> applyLensZoom(zoomRange.value));
+    zoomNumber.addEventListener('input', ()=> {
+      zoomWarning.textContent = getZoomWarning(Number(zoomNumber.value || 0));
+      zoomValue.textContent = `${zoomNumber.value || '0'}x`;
+    });
+    zoomNumber.addEventListener('change', ()=> applyLensZoom(zoomNumber.value));
+    zoomNumber.addEventListener('blur', ()=> applyLensZoom(zoomNumber.value));
+
+    const inspectZoomRange = document.getElementById('inspectZoomRange');
+    const inspectZoomValue = document.getElementById('inspectZoomValue');
+    const inspectZoomNumber = document.getElementById('inspectZoomNumber');
+    const inspectZoomWarning = document.getElementById('inspectZoomWarning');
+
+    function applyInspectZoom(rawVal){
+      let num = Number(rawVal);
+      if(!Number.isFinite(num)) num = 1;
+      num = Math.min(100, Math.max(1, num));
+      const val = num.toFixed(1);
+      inspectZoomRange.value = val;
+      inspectZoomNumber.value = val;
+      cameraState.inspect.video.style.setProperty('--video-zoom', val);
+      cameraState.inspect.fallback.style.setProperty('--video-zoom', val);
+      inspectZoomValue.textContent = `${val}x`;
+      inspectZoomWarning.textContent = getZoomWarning(num);
+    }
+
+    inspectZoomRange.addEventListener('input', ()=> applyInspectZoom(inspectZoomRange.value));
+    inspectZoomNumber.addEventListener('input', ()=> {
+      inspectZoomWarning.textContent = getZoomWarning(Number(inspectZoomNumber.value || 0));
+      inspectZoomValue.textContent = `${inspectZoomNumber.value || '0'}x`;
+    });
+    inspectZoomNumber.addEventListener('change', ()=> applyInspectZoom(inspectZoomNumber.value));
+    inspectZoomNumber.addEventListener('blur', ()=> applyInspectZoom(inspectZoomNumber.value));
+
+    applyLensZoom(1);
+    applyInspectZoom(1);
+
+    const highContrastToggle = document.getElementById('highContrastToggle');
+    const invertToggle = document.getElementById('invertToggle');
+    function updateIrFilter(){
+      let filter = 'contrast(1.4) brightness(1.08) saturate(0.2)';
+      if(!highContrastToggle.checked) filter = 'brightness(1.02)';
+      if(invertToggle.checked) filter += ' invert(1)';
+      cameraState.ir.video.style.filter = filter;
+      cameraState.ir.fallback.style.filter = filter;
+    }
+    highContrastToggle.addEventListener('change', updateIrFilter);
+    invertToggle.addEventListener('change', updateIrFilter);
+    updateIrFilter();
+
+    bindFallbackInput('fallbackImageLens','lens','statusLens');
+    bindFallbackInput('fallbackImageIr','ir','statusIr');
+    bindFallbackInput('fallbackImageInspect','inspect','statusInspect');
+
+    const checklistEl = document.getElementById('checklist');
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+    const CHECKLIST_KEY = 'busya_hidden_camera_checklist';
+
+    function loadChecklistState(){
+      try{ return JSON.parse(localStorage.getItem(CHECKLIST_KEY) || '[]'); }
+      catch{ return []; }
+    }
+
+    function saveChecklistState(){
+      const arr = Array.from(checklistEl.querySelectorAll('input[type="checkbox"]')).map(i=>i.checked);
+      localStorage.setItem(CHECKLIST_KEY, JSON.stringify(arr));
+      updateProgress();
+    }
+
+    function updateProgress(){
+      const inputs = Array.from(checklistEl.querySelectorAll('input[type="checkbox"]'));
+      const total = inputs.length || 1;
+      const checked = inputs.filter(i=>i.checked).length;
+      const percent = Math.round((checked/total)*100);
+      progressFill.style.width = `${percent}%`;
+      progressText.textContent = t('progressText')(percent, checked, total);
+    }
+
+    function renderChecklist(){
+      const saved = loadChecklistState();
+      checklistEl.innerHTML = '';
+      t('checklistItems').forEach((item,index)=>{
+        const [title, desc] = item;
+        const row = document.createElement('label');
+        row.className = 'checklist-item';
+        row.innerHTML = `
+          <input type="checkbox" ${saved[index] ? 'checked' : ''}>
+          <div>
+            <b>${title}</b>
+            <div class="small">${desc}</div>
+          </div>
+        `;
+        row.querySelector('input').addEventListener('change', saveChecklistState);
+        checklistEl.appendChild(row);
+      });
+      updateProgress();
+    }
+
+    document.getElementById('markAllBtn').addEventListener('click', ()=>{
+      checklistEl.querySelectorAll('input[type="checkbox"]').forEach(i=>i.checked = true);
+      saveChecklistState();
+    });
+    document.getElementById('resetChecklistBtn').addEventListener('click', ()=>{
+      checklistEl.querySelectorAll('input[type="checkbox"]').forEach(i=>i.checked = false);
+      saveChecklistState();
+    });
+
+    window.addEventListener('beforeunload', async ()=>{
+      await stopCamera('lens');
+      await stopCamera('ir');
+      await stopCamera('inspect');
+    });
+
+    applyLanguage();
+    renderChecklist();
+    updateDiagnostics();
+    showPlaceholder('lens', true);
+    showPlaceholder('ir', true);
+    showPlaceholder('inspect', true);
+  </script>
+</body>
+</html>
