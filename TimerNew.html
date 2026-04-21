@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Busya Timer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  :root{
+    --bg:#0f172a;
+    --panel:#111827;
+    --panel-2:#1f2937;
+    --text:#f9fafb;
+    --muted:#cbd5e1;
+    --accent:#38bdf8;
+    --accent-2:#0ea5e9;
+    --danger:#fb7185;
+    --input-bg:#0b1220;
+    --shadow:0 10px 30px rgba(0,0,0,0.25);
+  }
+
+  body.theme-light{
+    --bg:#f3f6fb;
+    --panel:#ffffff;
+    --panel-2:#e8eef8;
+    --text:#0f172a;
+    --muted:#475569;
+    --accent:#0ea5e9;
+    --accent-2:#0284c7;
+    --danger:#e11d48;
+    --input-bg:#ffffff;
+    --shadow:0 10px 30px rgba(15,23,42,0.10);
+  }
+
+  body.theme-dark{
+    --bg:#0f172a;
+    --panel:#111827;
+    --panel-2:#1f2937;
+    --text:#f9fafb;
+    --muted:#cbd5e1;
+    --accent:#38bdf8;
+    --accent-2:#0ea5e9;
+    --danger:#fb7185;
+    --input-bg:#0b1220;
+    --shadow:0 10px 30px rgba(0,0,0,0.25);
+  }
+
+  body.theme-blue{
+    --bg:#061a2f;
+    --panel:#0b2a4a;
+    --panel-2:#123c68;
+    --text:#eaf6ff;
+    --muted:#bfdcf6;
+    --accent:#58c7ff;
+    --accent-2:#83d7ff;
+    --danger:#ffd166;
+    --input-bg:#08213c;
+    --shadow:0 12px 32px rgba(0,0,0,0.28);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: linear-gradient(180deg, var(--bg), color-mix(in srgb, var(--bg) 80%, black 20%));
+    color: var(--text);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 14px;
+    transition: background .25s ease, color .25s ease;
+  }
+
+  .app {
+    width: min(100%, 420px);
+    background: var(--panel);
+    border-radius: 24px;
+    box-shadow: var(--shadow);
+    padding: 18px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .topbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    margin-bottom:14px;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 24px;
+    letter-spacing: .2px;
+  }
+
+  .subtitle{
+    color:var(--muted);
+    font-size:13px;
+    margin-top:4px;
+  }
+
+  .icon-btn{
+    border:none;
+    border-radius:14px;
+    background:var(--panel-2);
+    color:var(--text);
+    font-size:20px;
+    width:48px;
+    height:48px;
+    cursor:pointer;
+  }
+
+  .warning {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+    color: var(--text);
+    padding: 10px 12px;
+    border-radius: 14px;
+    font-size: 13px;
+    line-height: 1.35;
+    margin-bottom: 14px;
+  }
+
+  .inputs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .field{
+    background: var(--panel-2);
+    border-radius: 16px;
+    padding: 10px;
+  }
+
+  .field label{
+    display:block;
+    font-size:12px;
+    color:var(--muted);
+    margin-bottom:6px;
+  }
+
+  .field input, .field select {
+    width: 100%;
+    font-size: 20px;
+    text-align: center;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 10px 8px;
+    background: var(--input-bg);
+    color: var(--text);
+    outline: none;
+  }
+
+  .time {
+    font-size: 52px;
+    text-align:center;
+    margin: 18px 0 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+
+  .status{
+    text-align:center;
+    color:var(--muted);
+    font-size:14px;
+    min-height:20px;
+    margin-bottom:12px;
+  }
+
+  .buttons {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  button.action {
+    width: 100%;
+    padding: 13px 10px;
+    font-size: 16px;
+    border: none;
+    border-radius: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    background: var(--accent);
+    color: #062033;
+  }
+
+  button.action.secondary{
+    background: var(--panel-2);
+    color: var(--text);
+  }
+
+  button.action.danger{
+    background: var(--danger);
+    color: white;
+  }
+
+  .settings-panel{
+    margin-top:14px;
+    background: var(--panel-2);
+    border-radius: 18px;
+    padding: 14px;
+    display:none;
+  }
+
+  .settings-panel.open{ display:block; }
+
+  .settings-grid{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:12px;
+  }
+
+  .setting{
+    background: var(--panel);
+    border-radius: 14px;
+    padding: 10px;
+  }
+
+  .setting-title{
+    font-size:13px;
+    color:var(--muted);
+    margin-bottom:7px;
+  }
+
+  .toggle-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+    font-size:14px;
+    margin:8px 0;
+  }
+
+  input[type="checkbox"]{
+    width:20px;
+    height:20px;
+  }
+
+  .times-row{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
+
+  .footer-note{
+    margin-top:12px;
+    font-size:12px;
+    color:var(--muted);
+    line-height:1.35;
+  }
+
+  @media (max-width:390px){
+    .time{font-size:42px;}
+    .buttons{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body class="theme-blue">
+<div class="app">
+  <div class="topbar">
+    <div>
+      <h1 id="title">⏱ Таймер</h1>
+      <div class="subtitle" id="subtitle">BusyaOS style</div>
+    </div>
+    <button class="icon-btn" id="settingsBtn" aria-label="Settings">⚙️</button>
+  </div>
+
+  <div class="warning" id="warningText">
+    ⚠️ Пожалуйста, не гасите экран и не закрывайте приложение, чтобы услышать окончание таймера.
+  </div>
+
+  <div class="inputs">
+    <div class="field">
+      <label id="hoursLabel" for="hours">Часы</label>
+      <input type="number" id="hours" placeholder="0" min="0" max="99">
+    </div>
+    <div class="field">
+      <label id="minutesLabel" for="minutes">Минуты</label>
+      <input type="number" id="minutes" placeholder="0" min="0" max="59">
+    </div>
+    <div class="field">
+      <label id="secondsLabel" for="seconds">Секунды</label>
+      <input type="number" id="seconds" placeholder="0" min="0" max="59">
+    </div>
+  </div>
+
+  <div class="time" id="display">00:00:00</div>
+  <div class="status" id="status">Готов к запуску</div>
+
+  <div class="buttons">
+    <button class="action" id="startBtn">Старт</button>
+    <button class="action secondary" id="pauseBtn">Пауза</button>
+    <button class="action danger" id="resetBtn">Сброс</button>
+  </div>
+
+  <div class="settings-panel" id="settingsPanel">
+    <div class="settings-grid">
+      <div class="setting">
+        <div class="setting-title" id="langTitle">Язык</div>
+        <select id="languageSelect">
+          <option value="ru">Русский 🇷🇺</option>
+          <option value="be">Беларуская 🇧🇾</option>
+          <option value="en">English 🇬🇧</option>
+        </select>
+      </div>
+
+      <div class="setting">
+        <div class="setting-title" id="themeTitle">Тема</div>
+        <select id="themeSelect">
+          <option value="dark">🌛 Тёмная</option>
+          <option value="light">🌞 Светлая</option>
+          <option value="blue">🔵 Синяя</option>
+        </select>
+      </div>
+
+      <div class="setting">
+        <div class="setting-title" id="autoThemeTitle">Авто-переключение темы</div>
+        <div class="toggle-row">
+          <span id="enableDarkAutoText">Включать тёмную тему по времени</span>
+          <input type="checkbox" id="enableDarkAuto">
+        </div>
+        <div class="toggle-row">
+          <span id="enableLightAutoText">Включать светлую тему по времени</span>
+          <input type="checkbox" id="enableLightAuto">
+        </div>
+        <div class="times-row">
+          <div>
+            <label class="setting-title" id="darkTimeLabel" for="darkTime">Тёмная c</label>
+            <input type="time" id="darkTime" value="22:00">
+          </div>
+          <div>
+            <label class="setting-title" id="lightTimeLabel" for="lightTime">Светлая c</label>
+            <input type="time" id="lightTime" value="07:00">
+          </div>
+        </div>
+      </div>
+
+      <div class="setting">
+        <div class="setting-title" id="soundTitle">Звук</div>
+        <div class="toggle-row">
+          <span id="tickToggleText">Пиканье</span>
+          <input type="checkbox" id="tickEnabled">
+        </div>
+        <div class="toggle-row">
+          <span id="finishToggleText">Громкий звук по окончании</span>
+          <input type="checkbox" id="finishEnabled" checked>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-note" id="footerNote">
+      Настройки сохраняются в браузере на этом устройстве.
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = "busyaTimerSettings_v2";
+
+const translations = {
+  ru: {
+    title: "⏱ Таймер",
+    subtitle: "Стиль BusyaOS",
+    warning: "⚠️ Пожалуйста, не гасите экран и не закрывайте приложение, чтобы услышать окончание таймера.",
+    hours: "Часы",
+    minutes: "Минуты",
+    seconds: "Секунды",
+    ready: "Готов к запуску",
+    running: "Таймер идёт",
+    paused: "Пауза",
+    reset: "Таймер сброшен",
+    finished: "⏰ Время вышло!",
+    start: "Старт",
+    pause: "Пауза",
+    resetBtn: "Сброс",
+    langTitle: "Язык",
+    themeTitle: "Тема",
+    autoThemeTitle: "Авто-переключение темы",
+    enableDarkAutoText: "Включать тёмную тему по времени",
+    enableLightAutoText: "Включать светлую тему по времени",
+    darkTimeLabel: "Тёмная с",
+    lightTimeLabel: "Светлая с",
+    soundTitle: "Звук",
+    tickToggleText: "Пиканье",
+    finishToggleText: "Громкий звук по окончании",
+    footerNote: "Настройки сохраняются в браузере на этом устройстве.",
+    themeDark: "🌛 Тёмная",
+    themeLight: "🌞 Светлая",
+    themeBlue: "🔵 Синяя",
+    noTime: "Введите хотя бы 1 секунду"
+  },
+  be: {
+    title: "⏱ Таймер",
+    subtitle: "Стыль BusyaOS",
+    warning: "⚠️ Калі ласка, не гасіце экран і не закрывайце праграму, каб пачуць заканчэнне таймера.",
+    hours: "Гадзіны",
+    minutes: "Хвіліны",
+    seconds: "Секунды",
+    ready: "Гатовы да запуску",
+    running: "Таймер ідзе",
+    paused: "Паўза",
+    reset: "Таймер скінуты",
+    finished: "⏰ Час выйшаў!",
+    start: "Старт",
+    pause: "Паўза",
+    resetBtn: "Скід",
+    langTitle: "Мова",
+    themeTitle: "Тэма",
+    autoThemeTitle: "Аўта-пераключэнне тэмы",
+    enableDarkAutoText: "Уключаць цёмную тэму па часе",
+    enableLightAutoText: "Уключаць светлую тэму па часе",
+    darkTimeLabel: "Цёмная з",
+    lightTimeLabel: "Светлая з",
+    soundTitle: "Гук",
+    tickToggleText: "Піканне",
+    finishToggleText: "Гучны гук пасля заканчэння",
+    footerNote: "Налады захоўваюцца ў браўзеры на гэтай прыладзе.",
+    themeDark: "🌛 Цёмная",
+    themeLight: "🌞 Светлая",
+    themeBlue: "🔵 Сіняя",
+    noTime: "Увядзіце хаця б 1 секунду"
+  },
+  en: {
+    title: "⏱ Timer",
+    subtitle: "BusyaOS style",
+    warning: "⚠️ Please do not turn off the screen or close the app if you want to hear when the timer ends.",
+    hours: "Hours",
+    minutes: "Minutes",
+    seconds: "Seconds",
+    ready: "Ready to start",
+    running: "Timer is running",
+    paused: "Paused",
+    reset: "Timer reset",
+    finished: "⏰ Time is up!",
+    start: "Start",
+    pause: "Pause",
+    resetBtn: "Reset",
+    langTitle: "Language",
+    themeTitle: "Theme",
+    autoThemeTitle: "Auto theme switching",
+    enableDarkAutoText: "Enable dark theme by time",
+    enableLightAutoText: "Enable light theme by time",
+    darkTimeLabel: "Dark from",
+    lightTimeLabel: "Light from",
+    soundTitle: "Sound",
+    tickToggleText: "Ticking beep",
+    finishToggleText: "Loud finish sound",
+    footerNote: "Settings are saved in the browser on this device.",
+    themeDark: "🌛 Dark",
+    themeLight: "🌞 Light",
+    themeBlue: "🔵 Blue",
+    noTime: "Enter at least 1 second"
+  }
+};
+
+const settings = {
+  language: "ru",
+  theme: "blue",
+  enableDarkAuto: false,
+  enableLightAuto: false,
+  darkTime: "22:00",
+  lightTime: "07:00",
+  tickEnabled: false,
+  finishEnabled: true
+};
+
+let interval = null;
+let totalSeconds = 0;
+
+const els = {
+  body: document.body,
+  display: document.getElementById("display"),
+  status: document.getElementById("status"),
+  hours: document.getElementById("hours"),
+  minutes: document.getElementById("minutes"),
+  seconds: document.getElementById("seconds"),
+  startBtn: document.getElementById("startBtn"),
+  pauseBtn: document.getElementById("pauseBtn"),
+  resetBtn: document.getElementById("resetBtn"),
+  settingsBtn: document.getElementById("settingsBtn"),
+  settingsPanel: document.getElementById("settingsPanel"),
+  languageSelect: document.getElementById("languageSelect"),
+  themeSelect: document.getElementById("themeSelect"),
+  enableDarkAuto: document.getElementById("enableDarkAuto"),
+  enableLightAuto: document.getElementById("enableLightAuto"),
+  darkTime: document.getElementById("darkTime"),
+  lightTime: document.getElementById("lightTime"),
+  tickEnabled: document.getElementById("tickEnabled"),
+  finishEnabled: document.getElementById("finishEnabled"),
+  title: document.getElementById("title"),
+  subtitle: document.getElementById("subtitle"),
+  warningText: document.getElementById("warningText"),
+  hoursLabel: document.getElementById("hoursLabel"),
+  minutesLabel: document.getElementById("minutesLabel"),
+  secondsLabel: document.getElementById("secondsLabel"),
+  langTitle: document.getElementById("langTitle"),
+  themeTitle: document.getElementById("themeTitle"),
+  autoThemeTitle: document.getElementById("autoThemeTitle"),
+  enableDarkAutoText: document.getElementById("enableDarkAutoText"),
+  enableLightAutoText: document.getElementById("enableLightAutoText"),
+  darkTimeLabel: document.getElementById("darkTimeLabel"),
+  lightTimeLabel: document.getElementById("lightTimeLabel"),
+  soundTitle: document.getElementById("soundTitle"),
+  tickToggleText: document.getElementById("tickToggleText"),
+  finishToggleText: document.getElementById("finishToggleText"),
+  footerNote: document.getElementById("footerNote")
+};
+
+function saveSettings() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+}
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    Object.assign(settings, saved || {});
+  } catch (e) {
+    console.warn("Settings load failed", e);
+  }
+}
+
+function applyTheme(themeName) {
+  els.body.classList.remove("theme-light", "theme-dark", "theme-blue");
+  els.body.classList.add("theme-" + themeName);
+}
+
+function toSeconds(hhmm) {
+  if (!hhmm || !hhmm.includes(":")) return null;
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 3600 + m * 60;
+}
+
+function applyAutoTheme() {
+  const now = new Date();
+  const nowSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+
+  const darkSec = toSeconds(settings.darkTime);
+  const lightSec = toSeconds(settings.lightTime);
+
+  if (settings.enableDarkAuto && settings.enableLightAuto && darkSec !== null && lightSec !== null) {
+    if (darkSec === lightSec) return;
+    if (darkSec < lightSec) {
+      if (nowSec >= darkSec && nowSec < lightSec) applyTheme("dark");
+      else applyTheme(settings.theme);
+    } else {
+      if (nowSec >= darkSec || nowSec < lightSec) applyTheme("dark");
+      else applyTheme("light");
+    }
+    return;
+  }
+
+  if (settings.enableDarkAuto && darkSec !== null && nowSec >= darkSec) {
+    applyTheme("dark");
+    return;
+  }
+
+  if (settings.enableLightAuto && lightSec !== null && nowSec >= lightSec) {
+    applyTheme("light");
+    return;
+  }
+
+  applyTheme(settings.theme);
+}
+
+function applyTranslations() {
+  const t = translations[settings.language] || translations.ru;
+  document.documentElement.lang = settings.language;
+  els.title.textContent = t.title;
+  els.subtitle.textContent = t.subtitle;
+  els.warningText.textContent = t.warning;
+  els.hoursLabel.textContent = t.hours;
+  els.minutesLabel.textContent = t.minutes;
+  els.secondsLabel.textContent = t.seconds;
+  els.startBtn.textContent = t.start;
+  els.pauseBtn.textContent = t.pause;
+  els.resetBtn.textContent = t.resetBtn;
+  els.langTitle.textContent = t.langTitle;
+  els.themeTitle.textContent = t.themeTitle;
+  els.autoThemeTitle.textContent = t.autoThemeTitle;
+  els.enableDarkAutoText.textContent = t.enableDarkAutoText;
+  els.enableLightAutoText.textContent = t.enableLightAutoText;
+  els.darkTimeLabel.textContent = t.darkTimeLabel;
+  els.lightTimeLabel.textContent = t.lightTimeLabel;
+  els.soundTitle.textContent = t.soundTitle;
+  els.tickToggleText.textContent = t.tickToggleText;
+  els.finishToggleText.textContent = t.finishToggleText;
+  els.footerNote.textContent = t.footerNote;
+
+  const statusMap = {
+    ready: t.ready,
+    running: t.running,
+    paused: t.paused,
+    reset: t.reset
+  };
+  const currentStatus = els.status.dataset.state || "ready";
+  els.status.textContent = statusMap[currentStatus] || t.ready;
+
+  els.themeSelect.options[0].text = t.themeDark;
+  els.themeSelect.options[1].text = t.themeLight;
+  els.themeSelect.options[2].text = t.themeBlue;
+}
+
+function setStatus(state) {
+  els.status.dataset.state = state;
+  const t = translations[settings.language] || translations.ru;
+  const map = {
+    ready: t.ready,
+    running: t.running,
+    paused: t.paused,
+    reset: t.reset
+  };
+  els.status.textContent = map[state] || t.ready;
+}
+
+function updateDisplay() {
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  els.display.textContent =
+    String(h).padStart(2, "0") + ":" +
+    String(m).padStart(2, "0") + ":" +
+    String(s).padStart(2, "0");
+}
+
+function safeBeep(freq = 880, duration = 120, volume = 0.05, type = "square") {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    if (!window.__busyaAudioCtx) window.__busyaAudioCtx = new AudioCtx();
+    const ctx = window.__busyaAudioCtx;
+    if (ctx.state === "suspended") ctx.resume();
+
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+
+    oscillator.type = type;
+    oscillator.frequency.value = freq;
+    gainNode.gain.value = volume;
+
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    oscillator.start();
+    oscillator.stop(ctx.currentTime + duration / 1000);
+  } catch (e) {
+    console.warn("beep failed", e);
+  }
+}
+
+function playTick() {
+  if (!settings.tickEnabled) return;
+  safeBeep(1200, 60, 0.025, "square");
+}
+
+function playFinishSound() {
+  if (!settings.finishEnabled) return;
+  const pattern = [
+    [880, 180, 0.10],
+    [1046, 180, 0.10],
+    [1318, 240, 0.12],
+    [1046, 180, 0.10],
+    [1318, 320, 0.13]
+  ];
+  let delay = 0;
+  pattern.forEach(([freq, duration, volume]) => {
+    setTimeout(() => safeBeep(freq, duration, volume, "square"), delay);
+    delay += duration + 40;
+  });
+}
+
+function readInputsToSeconds() {
+  const h = Math.max(0, parseInt(els.hours.value, 10) || 0);
+  const m = Math.max(0, parseInt(els.minutes.value, 10) || 0);
+  const s = Math.max(0, parseInt(els.seconds.value, 10) || 0);
+
+  const normalizedMinutes = Math.min(m, 59);
+  const normalizedSeconds = Math.min(s, 59);
+  els.minutes.value = normalizedMinutes;
+  els.seconds.value = normalizedSeconds;
+
+  return h * 3600 + normalizedMinutes * 60 + normalizedSeconds;
+}
+
+function startTimer() {
+  if (interval) return;
+
+  if (totalSeconds === 0) {
+    totalSeconds = readInputsToSeconds();
+  }
+
+  if (totalSeconds <= 0) {
+    alert((translations[settings.language] || translations.ru).noTime);
+    return;
+  }
+
+  updateDisplay();
+  setStatus("running");
+
+  interval = setInterval(() => {
+    totalSeconds--;
+    updateDisplay();
+
+    if (totalSeconds > 0) {
+      playTick();
+    }
+
+    if (totalSeconds <= 0) {
+      clearInterval(interval);
+      interval = null;
+      totalSeconds = 0;
+      updateDisplay();
+      playFinishSound();
+      const finishDelay = settings.finishEnabled ? 1300 : 0;
+      setTimeout(() => {
+        alert((translations[settings.language] || translations.ru).finished);
+        setStatus("ready");
+      }, finishDelay);
+    }
+  }, 1000);
+}
+
+function pauseTimer() {
+  clearInterval(interval);
+  interval = null;
+  if (totalSeconds > 0) setStatus("paused");
+}
+
+function resetTimer() {
+  pauseTimer();
+  totalSeconds = 0;
+  updateDisplay();
+  setStatus("reset");
+}
+
+function syncSettingsUI() {
+  els.languageSelect.value = settings.language;
+  els.themeSelect.value = settings.theme;
+  els.enableDarkAuto.checked = !!settings.enableDarkAuto;
+  els.enableLightAuto.checked = !!settings.enableLightAuto;
+  els.darkTime.value = settings.darkTime;
+  els.lightTime.value = settings.lightTime;
+  els.tickEnabled.checked = !!settings.tickEnabled;
+  els.finishEnabled.checked = !!settings.finishEnabled;
+}
+
+function bindEvents() {
+  els.startBtn.addEventListener("click", startTimer);
+  els.pauseBtn.addEventListener("click", pauseTimer);
+  els.resetBtn.addEventListener("click", resetTimer);
+
+  els.settingsBtn.addEventListener("click", () => {
+    els.settingsPanel.classList.toggle("open");
+  });
+
+  els.languageSelect.addEventListener("change", (e) => {
+    settings.language = e.target.value;
+    saveSettings();
+    applyTranslations();
+  });
+
+  els.themeSelect.addEventListener("change", (e) => {
+    settings.theme = e.target.value;
+    saveSettings();
+    applyAutoTheme();
+  });
+
+  els.enableDarkAuto.addEventListener("change", (e) => {
+    settings.enableDarkAuto = e.target.checked;
+    saveSettings();
+    applyAutoTheme();
+  });
+
+  els.enableLightAuto.addEventListener("change", (e) => {
+    settings.enableLightAuto = e.target.checked;
+    saveSettings();
+    applyAutoTheme();
+  });
+
+  els.darkTime.addEventListener("change", (e) => {
+    settings.darkTime = e.target.value;
+    saveSettings();
+    applyAutoTheme();
+  });
+
+  els.lightTime.addEventListener("change", (e) => {
+    settings.lightTime = e.target.value;
+    saveSettings();
+    applyAutoTheme();
+  });
+
+  els.tickEnabled.addEventListener("change", (e) => {
+    settings.tickEnabled = e.target.checked;
+    saveSettings();
+  });
+
+  els.finishEnabled.addEventListener("change", (e) => {
+    settings.finishEnabled = e.target.checked;
+    saveSettings();
+  });
+
+  ["hours", "minutes", "seconds"].forEach(id => {
+    document.getElementById(id).addEventListener("input", () => {
+      if (!interval) updateDisplayFromInputs();
+    });
+  });
+}
+
+function updateDisplayFromInputs() {
+  const temp = readInputsToSeconds();
+  const h = Math.floor(temp / 3600);
+  const m = Math.floor((temp % 3600) / 60);
+  const s = temp % 60;
+  els.display.textContent =
+    String(h).padStart(2, "0") + ":" +
+    String(m).padStart(2, "0") + ":" +
+    String(s).padStart(2, "0");
+}
+
+function init() {
+  loadSettings();
+  syncSettingsUI();
+  applyTranslations();
+  applyAutoTheme();
+  updateDisplay();
+  setStatus("ready");
+  bindEvents();
+  updateDisplayFromInputs();
+  setInterval(applyAutoTheme, 30000);
+}
+
+init();
+</script>
+</body>
+</html>
