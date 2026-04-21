@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Simple Timer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body {
+    margin: 0;
+    font-family: system-ui, sans-serif;
+    background: #0f9d58;
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+
+  .app {
+    background: rgba(0,0,0,0.2);
+    padding: 20px;
+    border-radius: 16px;
+    width: 280px;
+    text-align: center;
+  }
+
+  h1 {
+    margin: 0 0 15px;
+    font-size: 22px;
+  }
+
+  .inputs input {
+    width: 80px;
+    font-size: 20px;
+    text-align: center;
+    border-radius: 8px;
+    border: none;
+    padding: 8px;
+    margin: 5px;
+  }
+
+  .time {
+    font-size: 48px;
+    margin: 15px 0;
+  }
+
+  button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 8px;
+    font-size: 18px;
+    border: none;
+    border-radius: 10px;
+    background: white;
+    color: #0f9d58;
+    font-weight: bold;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <h1>⏱ Таймер</h1>
+
+  <div class="inputs">
+    <input type="number" id="minutes" placeholder="Мин" min="0">
+    <input type="number" id="seconds" placeholder="Сек" min="0" max="59">
+  </div>
+
+  <div class="time" id="display">00:00</div>
+
+  <button onclick="startTimer()">Старт</button>
+  <button onclick="pauseTimer()">Пауза</button>
+  <button onclick="resetTimer()">Сброс</button>
+</div>
+
+<audio id="beep">
+  <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=">
+</audio>
+
+<script>
+let interval = null;
+let totalSeconds = 0;
+
+function updateDisplay() {
+  let m = Math.floor(totalSeconds / 60);
+  let s = totalSeconds % 60;
+  document.getElementById("display").textContent =
+    String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+}
+
+function startTimer() {
+  if (interval) return;
+
+  if (totalSeconds === 0) {
+    let m = parseInt(minutes.value) || 0;
+    let s = parseInt(seconds.value) || 0;
+    totalSeconds = m * 60 + s;
+  }
+
+  if (totalSeconds <= 0) return;
+
+  updateDisplay();
+
+  interval = setInterval(() => {
+    totalSeconds--;
+    updateDisplay();
+
+    if (totalSeconds <= 0) {
+      clearInterval(interval);
+      interval = null;
+      document.getElementById("beep").play();
+      alert("⏰ Время вышло!");
+    }
+  }, 1000);
+}
+
+function pauseTimer() {
+  clearInterval(interval);
+  interval = null;
+}
+
+function resetTimer() {
+  pauseTimer();
+  totalSeconds = 0;
+  updateDisplay();
+}
+</script>
+
+</body>
+</html>
