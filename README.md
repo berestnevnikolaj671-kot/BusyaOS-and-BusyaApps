@@ -22,14 +22,6 @@ BusyaApps is a collection of standalone HTML apps for BusyaOS and regular browse
 - 🌐 Browser  
 - ⚙️ First start setup wizard
 
-### 📸 Screenshots
-
-![Main Screen](screenshot1.jpg)
-![App Store](screenshot2.jpg)
-![Office](screenshot3.jpg)
-![Tile Editor](screenshot4.jpg)
-![First Setup](screenshot5.jpg)
-
 ### 📥 Installation
 
 1. Download repository ZIP or HTML file  
@@ -61,14 +53,6 @@ BusyaApps — коллекция автономных HTML-приложений 
 - 📷 QR сканер  
 - 🌐 Браузер  
 - ⚙️ Мастер первого запуска
-
-### 📸 Скриншоты
-
-![Главный экран](screenshot1.jpg)
-![Магазин приложений](screenshot2.jpg)
-![Офис](screenshot3.jpg)
-![Редактор плитки](screenshot4.jpg)
-![Первый запуск](screenshot5.jpg)
 
 ### 📥 Установка
 
