@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no"/>
+  <title>Rooster Run</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body{
+      margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      display:grid; place-items:center; min-height:100vh; background:#0b0b0c;
+    }
+    .wrap{ width:min(820px, 96vw); }
+    .top{
+      display:flex; justify-content:space-between; align-items:center;
+      gap:12px; color:#eaeaea; margin:10px 2px;
+      user-select:none;
+    }
+    .hint{ opacity:.75; font-size:14px; }
+    canvas{
+      width:100%; height:auto; border-radius:14px;
+      background: #111; box-shadow: 0 12px 30px rgba(0,0,0,.35);
+      touch-action: manipulation;
+    }
+    .btn{
+      appearance:none; border:0; border-radius:12px;
+      padding:10px 14px; font-weight:700; cursor:pointer;
+      background:#2a2a2f; color:#fff;
+    }
+    .btn:active{ transform: translateY(1px); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <div><b>Rooster Run</b> 🐓🌵</div>
+        <div class="hint">Прыжок: Space / ↑ / тап. Перезапуск: R</div>
+      </div>
+      <button class="btn" id="restartBtn">Restart</button>
+    </div>
+    <canvas id="c" width="820" height="260" aria-label="Игра Rooster Run"></canvas>
+  </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+
+  // HiDPI
+  function fitDPI(){
+    const cssW = canvas.clientWidth;
+    const ratio = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+    const targetW = Math.round(cssW * ratio);
+    const scale = targetW / canvas.width;
+    canvas.height = Math.round(canvas.height * scale);
+    canvas.width = targetW;
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.scale(ratio, ratio);
+  }
+
+  // World
+  const W = () => canvas.clientWidth; // in CSS px
+  const H = () => Math.round(canvas.clientWidth * (260/820));
+  const groundY = () => H() - 34;
+
+  let running = false;
+  let gameOver = false;
+
+  const rooster = {
+    x: 90,
+    y: 0,
+    w: 34,
+    h: 34,
+    vy: 0,
+    jumpStrength: 520,
+    gravity: 1600,
+    onGround: true,
+    blinkT: 0
+  };
+
+  const obstacles = [];
+  let spawnTimer = 0;
+  let spawnDelay = 1.15; // seconds
+  let speed = 270; // px/s
+  let score = 0;
+  let hi = Number(localStorage.getItem('rooster_hi') || 0);
+
+  function reset(){
+    running = true;
+    gameOver = false;
+    obstacles.length = 0;
+    spawnTimer = 0;
+    spawnDelay = 1.15;
+    speed = 270;
+    score = 0;
+
+    rooster.y = groundY() - rooster.h;
+    rooster.vy = 0;
+    rooster.onGround = true;
+  }
+
+  function jump(){
+    if(!running) reset();
+    if(gameOver) return;
+    if(rooster.onGround){
+      rooster.vy = -rooster.jumpStrength;
+      rooster.onGround = false;
+    }
+  }
+
+  function addObstacle(){
+    // Cactus sizes
+    const variants = [
+      {w: 18, h: 40},
+      {w: 24, h: 52},
+      {w: 32, h: 46},
+      {w: 42, h: 58}
+    ];
+    const v = variants[(Math.random()*variants.length)|0];
+
+    obstacles.push({
+      x: W() + 20,
+      y: groundY() - v.h,
+      w: v.w,
+      h: v.h,
+      // little randomness in shape (spikes)
+      spikes: 2 + ((Math.random()*4)|0)
+    });
+  }
+
+  function aabb(a,b){
+    return (
+      a.x < b.x + b.w &&
+      a.x + a.w > b.x &&
+      a.y < b.y + b.h &&
+      a.y + a.h > b.y
+    );
+  }
+
+  function drawBackground(){
+    // Sky gradient
+    const g = ctx.createLinearGradient(0,0,0,H());
+    g.addColorStop(0, '#0f1115');
+    g.addColorStop(1, '#0b0b0c');
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,W(),H());
+
+    // Distant dots
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = '#ffffff';
+    for(let i=0;i<50;i++){
+      const x = (i*97 + (t*30)) % (W()+40) - 20;
+      const y = 18 + (i*31)%80;
+      ctx.fillRect(x, y, 2, 2);
+    }
+    ctx.globalAlpha = 1;
+
+    // Ground
+    ctx.fillStyle = '#1a1a1f';
+    ctx.fillRect(0, groundY(), W(), H()-groundY());
+
+    // Ground line
+    ctx.strokeStyle = '#2f2f38';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, groundY()+1);
+    ctx.lineTo(W(), groundY()+1);
+    ctx.stroke();
+
+    // Small ground marks moving
+    ctx.strokeStyle = '#2b2b33';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    const step = 26;
+    const offset = (t * speed * 0.35) % step;
+    for(let x = -step; x < W()+step; x += step){
+      const xx = x - offset;
+      ctx.moveTo(xx, groundY()+16);
+      ctx.lineTo(xx+10, groundY()+16);
+    }
+    ctx.stroke();
+  }
+
+  function drawCactus(o){
+    ctx.save();
+    ctx.translate(o.x, o.y);
+
+    // body
+    ctx.fillStyle = '#22c55e';
+    roundRect(0, 0, o.w, o.h, 6, true);
+
+    // spikes
+    ctx.fillStyle = '#16a34a';
+    const n = o.spikes;
+    for(let i=0;i<n;i++){
+      const sy = 6 + (i*(o.h-12)/(n));
+      ctx.beginPath();
+      ctx.moveTo(2, sy);
+      ctx.lineTo(-4, sy+3);
+      ctx.lineTo(2, sy+6);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(o.w-2, sy);
+      ctx.lineTo(o.w+4, sy+3);
+      ctx.lineTo(o.w-2, sy+6);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // highlight
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = '#bbf7d0';
+    roundRect(4, 4, Math.max(4, o.w*0.22), o.h-8, 4, true);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  function drawRooster(){
+    // Simple “pixel-ish” rooster 🐓
+    const x = rooster.x, y = rooster.y;
+
+    // shadow
+    const sh = rooster.onGround ? 1 : 0.6;
+    ctx.globalAlpha = 0.35 * sh;
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(x+rooster.w/2, groundY()+22, 18, 6, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // body
+    ctx.fillStyle = '#f5f5f5';
+    roundRect(x+6, y+10, 22, 18, 8, true);
+
+    // tail
+    ctx.fillStyle = '#111827';
+    ctx.beginPath();
+    ctx.moveTo(x+6, y+18);
+    ctx.lineTo(x-6, y+10);
+    ctx.lineTo(x+2, y+26);
+    ctx.closePath();
+    ctx.fill();
+
+    // wing
+    ctx.fillStyle = '#e5e7eb';
+    ctx.beginPath();
+    ctx.ellipse(x+18, y+20, 9, 7, -0.6, 0, Math.PI*2);
+    ctx.fill();
+
+    // head
+    ctx.fillStyle = '#f5f5f5';
+    roundRect(x+22, y+6, 12, 12, 5, true);
+
+    // comb
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath();
+    ctx.moveTo(x+25, y+6);
+    ctx.lineTo(x+28, y-2);
+    ctx.lineTo(x+31, y+6);
+    ctx.closePath();
+    ctx.fill();
+
+    // beak
+    ctx.fillStyle = '#f59e0b';
+    ctx.beginPath();
+    ctx.moveTo(x+34, y+12);
+    ctx.lineTo(x+44, y+16);
+    ctx.lineTo(x+34, y+18);
+    ctx.closePath();
+    ctx.fill();
+
+    // legs
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 3;
+    const legY = y+28;
+    ctx.beginPath();
+    ctx.moveTo(x+18, legY);
+    ctx.lineTo(x+16, legY+10);
+    ctx.moveTo(x+26, legY);
+    ctx.lineTo(x+24, legY+10);
+    ctx.stroke();
+
+    // eye (blink)
+    rooster.blinkT += dt;
+    const blink = (rooster.blinkT % 3.6) > 3.45; // short blink
+    ctx.strokeStyle = '#111';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    if(blink){
+      ctx.moveTo(x+30, y+12);
+      ctx.lineTo(x+33, y+12);
+    } else {
+      ctx.arc(x+31.5, y+12, 1.6, 0, Math.PI*2);
+    }
+    ctx.stroke();
+  }
+
+  function roundRect(x,y,w,h,r,fill){
+    const rr = Math.min(r, w/2, h/2);
+    ctx.beginPath();
+    ctx.moveTo(x+rr,y);
+    ctx.arcTo(x+w,y,x+w,y+h,rr);
+    ctx.arcTo(x+w,y+h,x,y+h,rr);
+    ctx.arcTo(x,y+h,x,y,rr);
+    ctx.arcTo(x,y,x+w,y,rr);
+    ctx.closePath();
+    if(fill) ctx.fill();
+    else ctx.stroke();
+  }
+
+  function drawHUD(){
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.font = 'bold 16px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+    ctx.fillText(`Score: ${Math.floor(score)}`, 14, 24);
+
+    ctx.globalAlpha = 0.75;
+    ctx.font = '14px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+    ctx.fillText(`HI: ${hi}`, 14, 44);
+    ctx.globalAlpha = 1;
+
+    if(!running){
+      centerText("Нажми Space / тап, чтобы начать", 0);
+    }
+    if(gameOver){
+      centerText("Проиграл 😅  Нажми R или Restart", 20);
+    }
+  }
+
+  function centerText(text, dy){
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    roundRect(W()/2 - 230, H()/2 - 38 + dy, 460, 74, 14, true);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.font = 'bold 18px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(text, W()/2, H()/2 + dy);
+    ctx.restore();
+    ctx.textAlign = 'start';
+  }
+
+  function updatePhysics(){
+    // Rooster
+    rooster.vy += rooster.gravity * dt;
+    rooster.y += rooster.vy * dt;
+
+    const gy = groundY() - rooster.h;
+    if(rooster.y >= gy){
+      rooster.y = gy;
+      rooster.vy = 0;
+      rooster.onGround = true;
+    }
+
+    // Obstacles
+    for(let i=obstacles.length-1;i>=0;i--){
+      obstacles[i].x -= speed * dt;
+      if(obstacles[i].x + obstacles[i].w < -40) obstacles.splice(i,1);
+    }
+
+    // Spawn
+    spawnTimer += dt;
+    if(spawnTimer >= spawnDelay){
+      spawnTimer = 0;
+      addObstacle();
+
+      // Slightly random delay, gets harder over time
+      spawnDelay = Math.max(0.72, 1.15 - score/900 + (Math.random()*0.18));
+    }
+
+    // Speed increases slowly
+    speed = Math.min(520, 270 + score * 0.25);
+
+    // Score
+    score += dt * 60;
+
+    // Collision
+    const hitbox = {
+      x: rooster.x + 6,
+      y: rooster.y + 10,
+      w: rooster.w - 10,
+      h: rooster.h - 8
+    };
+    for(const o of obstacles){
+      const obox = { x: o.x, y: o.y, w: o.w, h: o.h };
+      if(aabb(hitbox, obox)){
+        gameOver = true;
+        running = false;
+        hi = Math.max(hi, Math.floor(score));
+        localStorage.setItem('rooster_hi', String(hi));
+        break;
+      }
+    }
+  }
+
+  // Loop
+  let last = performance.now();
+  let dt = 0;
+  let t = 0;
+
+  function loop(now){
+    const targetH = H();
+    if (canvas.height === 0 || Math.abs(targetH - canvas.clientHeight) > 2){
+      // CSS height adjusts automatically; ensure logic uses correct ground.
+    }
+
+    dt = Math.min(0.033, (now - last)/1000);
+    last = now;
+    t += dt;
+
+    // Clear & draw
+    ctx.clearRect(0,0,W(),H());
+    drawBackground();
+
+    // Update
+    if(running && !gameOver){
+      updatePhysics();
+    }
+
+    // Draw obstacles & rooster
+    for(const o of obstacles) drawCactus(o);
+    drawRooster();
+    drawHUD();
+
+    requestAnimationFrame(loop);
+  }
+
+  // Events
+  function onKey(e){
+    if(e.code === 'Space' || e.code === 'ArrowUp'){
+      e.preventDefault();
+      jump();
+    }
+    if(e.code === 'KeyR'){
+      e.preventDefault();
+      reset();
+    }
+  }
+
+  function onPointer(){
+    jump();
+  }
+
+  document.addEventListener('keydown', onKey, {passive:false});
+  canvas.addEventListener('pointerdown', onPointer, {passive:true});
+  document.getElementById('restartBtn').addEventListener('click', reset);
+
+  // Initial sizing: keep canvas logical size; CSS scales it.
+  function setCanvasCssHeight(){
+    canvas.style.height = `${H()}px`;
+  }
+  window.addEventListener('resize', () => {
+    setCanvasCssHeight();
+  });
+
+  // Start
+  setCanvasCssHeight();
+  rooster.y = groundY() - rooster.h;
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
